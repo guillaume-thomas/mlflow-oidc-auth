@@ -74,6 +74,18 @@ from mlflow_oidc_auth.repository.workspace_group_regex_permission import (
 
 
 class SqlAlchemyStore:
+    def _get_write_managed_session_maker(self):
+        """Return a session maker that defaults to read_only=False."""
+        if hasattr(self, "_WriteManagedSessionMaker"):
+            return self._WriteManagedSessionMaker
+
+        def _fallback_write_managed_session_maker(*args, **kwargs):
+            if "read_only" not in kwargs:
+                kwargs["read_only"] = False
+            return self.ManagedSessionMaker(*args, **kwargs)
+
+        return _fallback_write_managed_session_maker
+
     def init_db(self, db_uri):
         self.db_uri = db_uri
         self.db_type = extract_db_type_from_uri(db_uri)
@@ -81,47 +93,54 @@ class SqlAlchemyStore:
         dbutils.migrate_if_needed(self.engine, "head")
         SessionMaker = sessionmaker(bind=self.engine)
         self.ManagedSessionMaker = _get_managed_session_maker(SessionMaker, self.db_type)
-        self.user_repo = UserRepository(self.ManagedSessionMaker)
-        self.experiment_repo = ExperimentPermissionRepository(self.ManagedSessionMaker)
-        self.experiment_group_repo = ExperimentPermissionGroupRepository(self.ManagedSessionMaker)
-        self.group_repo = GroupRepository(self.ManagedSessionMaker)
-        self.registered_model_repo = RegisteredModelPermissionRepository(self.ManagedSessionMaker)
-        self.registered_model_group_repo = RegisteredModelPermissionGroupRepository(self.ManagedSessionMaker)
-        self.prompt_group_repo = PromptPermissionGroupRepository(self.ManagedSessionMaker)
-        self.experiment_regex_repo = ExperimentPermissionRegexRepository(self.ManagedSessionMaker)
-        self.experiment_group_regex_repo = ExperimentPermissionGroupRegexRepository(self.ManagedSessionMaker)
-        self.registered_model_regex_repo = RegisteredModelPermissionRegexRepository(self.ManagedSessionMaker)
-        self.registered_model_group_regex_repo = RegisteredModelGroupRegexPermissionRepository(self.ManagedSessionMaker)
-        self.prompt_group_regex_repo = RegisteredModelGroupRegexPermissionRepository(self.ManagedSessionMaker)
-        self.prompt_regex_repo = RegisteredModelPermissionRegexRepository(self.ManagedSessionMaker)
+
+        def _write_managed_session_maker(*args, **kwargs):
+            if "read_only" not in kwargs:
+                kwargs["read_only"] = False
+            return self.ManagedSessionMaker(*args, **kwargs)
+
+        self._WriteManagedSessionMaker = _write_managed_session_maker
+        self.user_repo = UserRepository(self._WriteManagedSessionMaker)
+        self.experiment_repo = ExperimentPermissionRepository(self._WriteManagedSessionMaker)
+        self.experiment_group_repo = ExperimentPermissionGroupRepository(self._WriteManagedSessionMaker)
+        self.group_repo = GroupRepository(self._WriteManagedSessionMaker)
+        self.registered_model_repo = RegisteredModelPermissionRepository(self._WriteManagedSessionMaker)
+        self.registered_model_group_repo = RegisteredModelPermissionGroupRepository(self._WriteManagedSessionMaker)
+        self.prompt_group_repo = PromptPermissionGroupRepository(self._WriteManagedSessionMaker)
+        self.experiment_regex_repo = ExperimentPermissionRegexRepository(self._WriteManagedSessionMaker)
+        self.experiment_group_regex_repo = ExperimentPermissionGroupRegexRepository(self._WriteManagedSessionMaker)
+        self.registered_model_regex_repo = RegisteredModelPermissionRegexRepository(self._WriteManagedSessionMaker)
+        self.registered_model_group_regex_repo = RegisteredModelGroupRegexPermissionRepository(self._WriteManagedSessionMaker)
+        self.prompt_group_regex_repo = RegisteredModelGroupRegexPermissionRepository(self._WriteManagedSessionMaker)
+        self.prompt_regex_repo = RegisteredModelPermissionRegexRepository(self._WriteManagedSessionMaker)
 
         # Scorer permissions
-        self.scorer_repo = ScorerPermissionRepository(self.ManagedSessionMaker)
-        self.scorer_group_repo = ScorerPermissionGroupRepository(self.ManagedSessionMaker)
-        self.scorer_regex_repo = ScorerPermissionRegexRepository(self.ManagedSessionMaker)
-        self.scorer_group_regex_repo = ScorerPermissionGroupRegexRepository(self.ManagedSessionMaker)
+        self.scorer_repo = ScorerPermissionRepository(self._WriteManagedSessionMaker)
+        self.scorer_group_repo = ScorerPermissionGroupRepository(self._WriteManagedSessionMaker)
+        self.scorer_regex_repo = ScorerPermissionRegexRepository(self._WriteManagedSessionMaker)
+        self.scorer_group_regex_repo = ScorerPermissionGroupRegexRepository(self._WriteManagedSessionMaker)
 
         # Gateway permissions
-        self.gateway_secret_repo = GatewaySecretPermissionRepository(self.ManagedSessionMaker)
-        self.gateway_secret_group_repo = GatewaySecretGroupPermissionRepository(self.ManagedSessionMaker)
-        self.gateway_secret_regex_repo = GatewaySecretPermissionRegexRepository(self.ManagedSessionMaker)
-        self.gateway_secret_group_regex_repo = GatewaySecretPermissionGroupRegexRepository(self.ManagedSessionMaker)
+        self.gateway_secret_repo = GatewaySecretPermissionRepository(self._WriteManagedSessionMaker)
+        self.gateway_secret_group_repo = GatewaySecretGroupPermissionRepository(self._WriteManagedSessionMaker)
+        self.gateway_secret_regex_repo = GatewaySecretPermissionRegexRepository(self._WriteManagedSessionMaker)
+        self.gateway_secret_group_regex_repo = GatewaySecretPermissionGroupRegexRepository(self._WriteManagedSessionMaker)
 
-        self.gateway_endpoint_repo = GatewayEndpointPermissionRepository(self.ManagedSessionMaker)
-        self.gateway_endpoint_group_repo = GatewayEndpointGroupPermissionRepository(self.ManagedSessionMaker)
-        self.gateway_endpoint_regex_repo = GatewayEndpointPermissionRegexRepository(self.ManagedSessionMaker)
-        self.gateway_endpoint_group_regex_repo = GatewayEndpointPermissionGroupRegexRepository(self.ManagedSessionMaker)
+        self.gateway_endpoint_repo = GatewayEndpointPermissionRepository(self._WriteManagedSessionMaker)
+        self.gateway_endpoint_group_repo = GatewayEndpointGroupPermissionRepository(self._WriteManagedSessionMaker)
+        self.gateway_endpoint_regex_repo = GatewayEndpointPermissionRegexRepository(self._WriteManagedSessionMaker)
+        self.gateway_endpoint_group_regex_repo = GatewayEndpointPermissionGroupRegexRepository(self._WriteManagedSessionMaker)
 
-        self.gateway_model_definition_repo = GatewayModelDefinitionPermissionRepository(self.ManagedSessionMaker)
-        self.gateway_model_definition_group_repo = GatewayModelDefinitionGroupPermissionRepository(self.ManagedSessionMaker)
-        self.gateway_model_definition_regex_repo = GatewayModelDefinitionPermissionRegexRepository(self.ManagedSessionMaker)
-        self.gateway_model_definition_group_regex_repo = GatewayModelDefinitionPermissionGroupRegexRepository(self.ManagedSessionMaker)
+        self.gateway_model_definition_repo = GatewayModelDefinitionPermissionRepository(self._WriteManagedSessionMaker)
+        self.gateway_model_definition_group_repo = GatewayModelDefinitionGroupPermissionRepository(self._WriteManagedSessionMaker)
+        self.gateway_model_definition_regex_repo = GatewayModelDefinitionPermissionRegexRepository(self._WriteManagedSessionMaker)
+        self.gateway_model_definition_group_regex_repo = GatewayModelDefinitionPermissionGroupRegexRepository(self._WriteManagedSessionMaker)
 
         # Workspace permissions
-        self.workspace_permission_repo = WorkspacePermissionRepository(self.ManagedSessionMaker)
-        self.workspace_group_permission_repo = WorkspaceGroupPermissionRepository(self.ManagedSessionMaker)
-        self.workspace_regex_permission_repo = WorkspaceRegexPermissionRepository(self.ManagedSessionMaker)
-        self.workspace_group_regex_permission_repo = WorkspaceGroupRegexPermissionRepository(self.ManagedSessionMaker)
+        self.workspace_permission_repo = WorkspacePermissionRepository(self._WriteManagedSessionMaker)
+        self.workspace_group_permission_repo = WorkspaceGroupPermissionRepository(self._WriteManagedSessionMaker)
+        self.workspace_regex_permission_repo = WorkspaceRegexPermissionRepository(self._WriteManagedSessionMaker)
+        self.workspace_group_regex_permission_repo = WorkspaceGroupRegexPermissionRepository(self._WriteManagedSessionMaker)
 
     @staticmethod
     def _create_engine(db_uri):
@@ -230,7 +249,7 @@ class SqlAlchemyStore:
             SqlScorerPermission,
         )
 
-        with self.ManagedSessionMaker() as session:
+        with self._get_write_managed_session_maker()() as session:
             session.query(SqlScorerPermission).filter(
                 SqlScorerPermission.experiment_id == experiment_id,
                 SqlScorerPermission.scorer_name == scorer_name,

@@ -121,7 +121,15 @@ def mock_store():
         "user@example.com",
         "service@example.com",
     ]
-    store_mock.create_user.return_value = True
+    store_mock.create_user.side_effect = lambda username, password, display_name, is_admin=False, is_service_account=False: User(
+        id_=999,
+        username=username,
+        password_hash=password,
+        password_expiration=None,
+        is_admin=is_admin,
+        is_service_account=is_service_account,
+        display_name=display_name,
+    )
     store_mock.update_user.return_value = None
     store_mock.delete_user.return_value = None
 
@@ -353,6 +361,7 @@ def _patch_router_stores(mock_store):
     """
     patches = [
         patch("mlflow_oidc_auth.store.store", mock_store),
+        patch("mlflow_oidc_auth.user.store", mock_store),
         patch("mlflow_oidc_auth.utils.request_helpers_fastapi.store", mock_store),
         patch("mlflow_oidc_auth.utils.batch_permissions.store", mock_store),
         patch("mlflow_oidc_auth.routers.registered_model_permissions.store", mock_store),
@@ -445,6 +454,7 @@ def test_app(mock_store, mock_oauth, mock_config, mock_tracking_store, mock_perm
 
     patches = [
         patch("mlflow_oidc_auth.middleware.auth_middleware.store", mock_store),
+        patch("mlflow_oidc_auth.user.store", mock_store),
         patch("mlflow_oidc_auth.oauth.oauth", mock_oauth),
         patch("mlflow_oidc_auth.config.config", mock_config),
         patch(
@@ -581,6 +591,7 @@ def test_app_admin(mock_store, mock_oauth, mock_config, mock_tracking_store, adm
 
     patches = [
         patch("mlflow_oidc_auth.store.store", mock_store),
+        patch("mlflow_oidc_auth.user.store", mock_store),
         patch("mlflow_oidc_auth.middleware.auth_middleware.store", mock_store),
         patch("mlflow_oidc_auth.oauth.oauth", mock_oauth),
         patch("mlflow_oidc_auth.config.config", mock_config),
